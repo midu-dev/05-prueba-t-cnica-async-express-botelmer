@@ -1,71 +1,91 @@
 import net from 'node:net'
 import fs from 'node:fs'
+import fsp from 'node:fs/promises'
 
 // # EJERCICIO 1
-export const ping = (ip) => {
+export const ping = (ip, callback) => {
   const startTime = process.hrtime()
 
   const client = net.connect({ port: 80, host: ip }, () => {
     client.end()
-    return { time: process.hrtime(startTime), ip }
+    callback(null, { time: process.hrtime(startTime), ip })
   })
 
   client.on('error', (err) => {
-    throw err
     client.end()
+    callback(err)
   })
 }
 
-ping('midu.dev', (err, info) => {
-  if (err) console.error(err)
-  console.log(info)
-})
-
 // # EJERCICIO 2
-export function obtenerDatosPromise (callback) {
-  setTimeout(() => {
-    callback(null, { data: 'datos importantes' })
-  }, 2000)
+export function obtenerDatosPromise () {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve({ data: 'datos importantes' })
+    }, 2000)
+  })
 }
 
 // # EJERCICIO 3
-export function procesarArchivo () {
-  fs.readFile('input.txt', 'utf8', (error, contenido) => {
+// Esta función lee el contenido de un archivo input.txt, convierte el contenido en mayusculas y luego lo envia al archivo output.txt
+export function procesarArchivo (callback) {
+  const handleWriteFile = (error) => {
+    if (error) {
+      console.error('Error guardando archivo:', error.message)
+      callback(error)
+    }
+    console.log('Archivo procesado y guardado con éxito')
+    callback(null)
+  }
+
+  const handleReadFile = (error, contenido) => {
     if (error) {
       console.error('Error leyendo archivo:', error.message)
-      return false
+      callback(error)
     }
+    const textoProcesado = contenido.toUpperCase()
 
-    setTimeout(() => {
-      const textoProcesado = contenido.toUpperCase()
+    fs.writeFile('output.txt', textoProcesado, handleWriteFile)
+  }
 
-      fs.writeFile('output.txt', textoProcesado, error => {
-        if (error) {
-          console.error('Error guardando archivo:', error.message)
-          return false
-        }
-
-        console.log('Archivo procesado y guardado con éxito')
-        return true
-      })
-    }, 1000)
-  })
+  fs.readFile('input.txt', 'utf8', handleReadFile)
 }
 
-export function procesarArchivoPromise () {
-  // tu código aquí
+export async function procesarArchivoPromise () {
+  let contenido = ''
+  try {
+    contenido = await fsp.readFile('input.txt', 'utf-8')
+  } catch (error) {
+    console.error(error.message)
+    throw error
+  }
+  const textoProcesado = contenido.toUpperCase()
+
+  try {
+    await fsp.writeFile('output.txt', textoProcesado)
+  } catch (error) {
+    console.error(error.message)
+    throw error
+  }
 }
 
 // # EJERCICIO 4
-export function leerArchivos () {
-  const archivo1 = fs.readSync('archivo1.txt', 'utf8')
-  const archivo2 = fs.readSync('archivo2.txt', 'utf8')
-  const archivo3 = fs.readSync('archivo3.txt', 'utf8')
-
+export async function leerArchivos () {
+  const [archivo1, archivo2, archivo3] = await Promise.all([
+    fsp.readFile('archivo1.txt', 'utf8'),
+    fsp.readFile('archivo2.txt', 'utf8'),
+    fsp.readFile('archivo3.txt', 'utf8')
+  ])
+    .catch(error => {
+      console.error(error)
+      return []
+    })
   return `${archivo1} ${archivo2} ${archivo3}`
 }
 
 // # EJERCICIO 5
-export async function delay () {
-  // ...
+export async function delay (ms) {
+  return new Promise(resolve => {
+    setTimeout(resolve, ms)
+  })
 }
